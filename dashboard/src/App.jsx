@@ -4,6 +4,7 @@ import {
   Save, X, RotateCcw, ArrowRight, Eye, Zap, Shield, Loader, Wifi, WifiOff,
 } from "lucide-react";
 import { api } from "./api";
+import Analytics from "./Analytics";
 
 const T = {
   bg: "#0B0B0F", surface: "#141418", surfaceHover: "#1A1A1F",
@@ -83,6 +84,7 @@ const ConnectionDot = ({ online }) => (
 
 // ── Main app ──────────────────────────────────────────────────────
 export default function App() {
+  const [view, setView] = useState("queue");
   const [docs, setDocs] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -253,7 +255,20 @@ export default function App() {
           <Zap size={16} color={T.accent} />
         </div>
         <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em" }}>DocLens</span>
-        <span style={{ fontSize: 12, color: T.textTer, marginLeft: 4, fontWeight: 500 }}>review queue</span>
+        <div style={{
+          display: "flex", gap: 2, marginLeft: 16, padding: 2,
+          background: T.surface, borderRadius: 8, border: `1px solid ${T.border}`,
+        }}>
+          {[{ k: "queue", l: "Queue" }, { k: "analytics", l: "Analytics" }].map((t) => (
+            <button key={t.k} onClick={() => setView(t.k)} style={{
+              padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer",
+              fontSize: 12, fontWeight: 600,
+              background: view === t.k ? T.surfaceActive : "transparent",
+              color: view === t.k ? T.text : T.textTer,
+              transition: "all 0.15s",
+            }}>{t.l}</button>
+          ))}
+        </div>
         <div style={{ marginLeft: "auto" }}>
           <ConnectionDot online={online} />
         </div>
@@ -638,6 +653,8 @@ export default function App() {
           <Loader size={24} color={T.accent} style={{ animation: "spin 1s linear infinite" }} />
           <div style={{ fontSize: 12, color: T.textTer }}>Connecting to DocLens API...</div>
         </div>
+      ) : view === "analytics" ? (
+        <Analytics setView={setView} online={online} setError={setError} />
       ) : selectedId ? renderDetail() : renderList()}
     </>
   );

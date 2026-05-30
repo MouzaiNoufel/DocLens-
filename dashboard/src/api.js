@@ -43,6 +43,8 @@ export const api = {
 
   getStats: () => request("/api/stats"),
 
+  getAnalytics: () => request("/api/analytics"),
+
   getHealth: () => request("/api/health"),
 };
 

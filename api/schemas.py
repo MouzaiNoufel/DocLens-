@@ -63,3 +63,47 @@ class StatsOut(BaseModel):
     auto_approved: int = 0
     needs_review: int = 0
     reviewed: int = 0
+
+
+# ── Analytics ────────────────────────────────────────────────────
+
+
+class AnalyticsSummary(BaseModel):
+    total_documents: int = 0
+    auto_approved: int = 0
+    needs_review: int = 0
+    reviewed: int = 0
+    processing: int = 0
+    auto_approve_rate: float = 0.0
+    correction_rate: float = 0.0
+    avg_confidence: float = 0.0
+
+
+class ThroughputPoint(BaseModel):
+    date: str
+    count: int
+
+
+class ConfidenceBucket(BaseModel):
+    bucket: str
+    count: int
+
+
+class FieldAccuracy(BaseModel):
+    field_name: str
+    total: int
+    corrected: int
+    accuracy: float
+
+
+class FlagCount(BaseModel):
+    flag: str
+    count: int
+
+
+class AnalyticsResponse(BaseModel):
+    summary: AnalyticsSummary
+    throughput: List[ThroughputPoint] = []
+    confidence_distribution: List[ConfidenceBucket] = []
+    field_accuracy: List[FieldAccuracy] = []
+    top_flags: List[FlagCount] = []
