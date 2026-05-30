@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# Runtime data
+uploads/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Model cache (HuggingFace downloads)
+.cache/
+
+# Logs
+*.log
+logs/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Scratch / duplicates
+h.txt
+*\ \(*\).*
+*(1).*
+*(2).*

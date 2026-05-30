@@ -1,0 +1,23 @@
+# ── Core ML / VLM ──
+# Install the CUDA build of torch separately (see README), then the rest here.
+torch>=2.1
+transformers>=4.49.0
+accelerate>=0.30.0
+bitsandbytes>=0.43.0      # 4-bit quantization (on Windows, use WSL2)
+qwen-vl-utils>=0.0.8
+
+# ── Document preprocessing ──
+pymupdf>=1.24.0           # PDF -> image rasterization (imported as `fitz`)
+pillow>=10.0.0
+
+# ── Schema + validation ──
+pydantic>=2.6.0
+python-dateutil>=2.9.0
+
+# ── API (Phase 3) ──
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9   # file uploads
+sqlalchemy[asyncio]>=2.0.30
+aiosqlite>=0.20.0         # async SQLite (default local dev)
+# asyncpg>=0.29.0         # uncomment for Postgres
