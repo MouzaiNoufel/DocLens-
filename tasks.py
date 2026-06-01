@@ -13,9 +13,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import random
-import time
-from datetime import datetime, timedelta
 
 from .config import AUTO_APPROVE_THRESHOLD, DEMO_MODE, MAX_PIXELS, MODEL_NAME
 from .database import async_session
@@ -39,82 +36,75 @@ def _get_extractor():
     return _extractor
 
 
-# ── Demo pipeline (cloud deploys without a GPU) ───────────────────────────
-# Generates plausible mock extractions so the dashboard, validation,
-# routing and analytics charts are all exercised by realistic data.
-
-_DEMO_VENDORS = (
-    "Acme Office Supplies", "Northwind Traders", "Globex Logistics",
-    "Initech Software LLC", "Stark Industries", "Wayne Enterprises",
-    "Umbrella Health", "Soylent Foods Co.", "Tyrell Systems",
-    "Hooli Cloud Services",
-)
-_DEMO_CURRENCIES = ("USD", "EUR", "GBP")
-
-
 def _demo_pipeline(file_path: str):
-    """Mock the VLM. Page count is real (PDF is actually parsed)."""
+    """Return a realistic mock extraction without loading the VLM.
+
+    Used in DEMO_MODE for cloud demos where no GPU is available. The mock
+    output varies per call (different vendors, totals, occasional flags) so
+    the analytics view has real-looking data to display.
+    """
+    import random
+    import time
+
     from invoice_idp.preprocess import load_as_images
-    from invoice_idp.schema import InvoiceFields, LineItem as IdpLineItem
+    from invoice_idp.schema import InvoiceFields, LineItem
     from invoice_idp.validate import validate_and_route
 
     images = load_as_images(file_path)
-    time.sleep(random.uniform(1.5, 3.5))  # simulate VLM latency
+    time.sleep(1.5 + random.random() * 2)  # simulate processing latency
 
-    subtotal = round(random.uniform(120, 4800), 2)
-    tax = round(subtotal * random.choice((0.05, 0.075, 0.10, 0.20)), 2)
+    vendors = [
+        ("Acme Supplies Ltd", "742 Industrial Blvd, Chicago IL"),
+        ("TechCorp Inc", "1200 Tech Park Dr, Austin TX"),
+        ("Global Logistics Co", "88 Harbor Way, Long Beach CA"),
+        ("Pinnacle Tech Solutions", "2800 Innovation Drive, San Francisco CA"),
+        ("Smith & Partners LLP", "55 Court St, Boston MA"),
+        ("Metro Office Supply", "320 Commerce Rd, Newark NJ"),
+    ]
+    vendor_name, vendor_addr = random.choice(vendors)
+
+    subtotal = round(random.uniform(200, 12000), 2)
+    tax = round(subtotal * random.uniform(0.05, 0.10), 2)
     total = round(subtotal + tax, 2)
 
-    # 12% of the time, inject a totals mismatch so the flags chart is non-empty.
+    # ~12% of mock invoices have a totals mismatch — makes flags chart non-empty
+    flags: list[str] = []
     if random.random() < 0.12:
-        total = round(total + random.uniform(5, 50), 2)
+        total = round(total + random.uniform(1, 8), 2)
 
-    n_items = random.randint(1, 4)
-    per_item = round(subtotal / n_items, 2)
-    line_items = [
-        IdpLineItem(
-            description=f"Item {i + 1}",
-            quantity=float(random.randint(1, 5)),
-            unit_price=round(per_item / max(1, random.randint(1, 3)), 2),
-            amount=per_item,
-        )
-        for i in range(n_items)
-    ]
-
-    invoice_date = (datetime.utcnow() - timedelta(days=random.randint(0, 60))).date()
-    due_date = invoice_date + timedelta(days=random.choice((15, 30, 45, 60)))
-
+    line_unit = round(subtotal / 2, 2)
     fields = InvoiceFields(
-        vendor_name=random.choice(_DEMO_VENDORS),
-        vendor_address=f"{random.randint(100, 9999)} Market St, Springfield",
-        invoice_number=f"INV-{random.randint(10000, 99999)}",
-        invoice_date=invoice_date.isoformat(),
-        due_date=due_date.isoformat(),
-        currency=random.choice(_DEMO_CURRENCIES),
-        line_items=line_items,
+        vendor_name=vendor_name,
+        vendor_address=vendor_addr,
+        invoice_number=f"INV-2024-{random.randint(1000, 9999)}",
+        invoice_date=f"2024-03-{random.randint(10, 28):02d}",
+        due_date=f"2024-04-{random.randint(10, 28):02d}",
+        currency="USD",
+        line_items=[
+            LineItem(description="Professional services", quantity=random.randint(1, 10),
+                     unit_price=line_unit, amount=line_unit),
+            LineItem(description="Setup & onboarding", quantity=1,
+                     unit_price=line_unit, amount=line_unit),
+        ],
         subtotal=subtotal,
         tax=tax,
         total=total,
     )
 
-    # Per-field confidences tuned to look like real model output.
-    def _conf(low: float, high: float) -> float:
-        return round(random.uniform(low, high), 3)
-
-    confidence = {
-        "vendor_name": _conf(0.82, 0.99),
-        "vendor_address": _conf(0.70, 0.95),
-        "invoice_number": _conf(0.88, 0.99),
-        "invoice_date": _conf(0.80, 0.98),
-        "due_date": _conf(0.75, 0.97),
-        "currency": _conf(0.90, 0.99),
-        "subtotal": _conf(0.80, 0.98),
-        "tax": _conf(0.75, 0.97),
-        "total": _conf(0.82, 0.99),
+    field_confidence = {
+        "vendor_name": random.uniform(0.80, 0.99),
+        "vendor_address": random.uniform(0.70, 0.95),
+        "invoice_number": random.uniform(0.90, 0.99),
+        "invoice_date": random.uniform(0.80, 0.95),
+        "due_date": random.uniform(0.75, 0.95),
+        "currency": random.uniform(0.95, 0.99),
+        "subtotal": random.uniform(0.80, 0.98),
+        "tax": random.uniform(0.75, 0.95),
+        "total": random.uniform(0.70, 0.99),
     }
 
     result = validate_and_route(
-        fields, confidence, flags=[], auto_approve_threshold=AUTO_APPROVE_THRESHOLD
+        fields, field_confidence, flags, auto_approve_threshold=AUTO_APPROVE_THRESHOLD
     )
     return result, len(images)
 
@@ -122,6 +112,7 @@ def _demo_pipeline(file_path: str):
 def _sync_pipeline(file_path: str):
     """Run preprocess → extract → validate synchronously (CPU/GPU-bound)."""
     if DEMO_MODE:
+        logger.info("DEMO_MODE: returning mock extraction (no VLM)")
         return _demo_pipeline(file_path)
 
     from invoice_idp.preprocess import load_as_images

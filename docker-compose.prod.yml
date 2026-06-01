@@ -1,0 +1,51 @@
+# Production stack: API + dashboard + Postgres.
+# Run with:  docker compose -f docker-compose.prod.yml up -d --build
+# Stop with: docker compose -f docker-compose.prod.yml down
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://doclens:doclens@db:5432/doclens
+      CORS_ORIGINS: http://localhost,http://localhost:80
+      DOCLENS_DEMO_MODE: "true"
+      AUTO_APPROVE_THRESHOLD: "0.85"
+      UPLOAD_DIR: /tmp/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8000
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: doclens
+      POSTGRES_PASSWORD: doclens
+      POSTGRES_DB: doclens
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doclens"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:
